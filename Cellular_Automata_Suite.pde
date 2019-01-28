@@ -45,7 +45,7 @@ void draw() {
     background(240);
     ui.display();
     if( add_neigh.b ){
-      neighborhoods.add( new float[neigh_size.n][neigh_size.n] );
+      neighborhoods.add( new float[(2 * neigh_radius.n) +1][(2 * neigh_radius.n) +1] );
       ui.set[0].add( neighborhoods.get(neighborhoods.size()-1) );
       add_neigh.b = false;
     }

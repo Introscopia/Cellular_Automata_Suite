@@ -874,11 +874,11 @@ class UISet {
     else println( "addListSelect failed: not columning nor rowing." );
   }
   //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-  void addNeighborhood_list (int l, int c, integer o_e, bool a, integer dn, integer ns ) {
+  void addNeighborhood_list (int l, int c, integer o_e, bool a, integer dn, integer nr ) {
     addToIndices( l, c );
     float x = X + margin + (l * column_width) + ( ( (ceil(Hx) - Hx) * column_width ) / 2f );
     float y = Y + margin + (c * line_height) + ( ( (ceil(Vx) - Vx ) * line_height) / 2f );
-    set = (UIElement[]) append( set, new Neighborhood_list( x, y, Hx * column_width, Vx * line_height, o_e, a, dn, ns ) );
+    set = (UIElement[]) append( set, new Neighborhood_list( x, y, Hx * column_width, Vx * line_height, o_e, a, dn, nr ) );
   }
   //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
   void addRule_list ( int l, int c ){
@@ -3192,8 +3192,11 @@ class Neighborhood_widget extends UIElement {
     translate( x + m, y + m );
     for(int i = 0; i < incumbency.length; i++){
       for(int j = 0; j < incumbency.length; j++){
-        if( i == c && j == c ) fill( 0, 0, 255 );
-        else fill( 255, 0, 0, 255*incumbency[i][j] );
+        if( i == c && j == c ){
+          fill( 0, 0, 255 );
+          rect( i*e, j*e, e, e );
+        }
+        fill( 255, 0, 0, 255*incumbency[i][j] );
         rect( i*e, j*e, e, e );
       }
     }
@@ -3215,7 +3218,7 @@ class Neighborhood_list extends UIElement {
   float unit_h, m, lm;
   PlusMinus_Int PM;
   ToggleButton TB;
-  Neighborhood_list (float x, float y, float w, float h, integer o, bool an, integer dn, integer ns ) {
+  Neighborhood_list (float x, float y, float w, float h, integer o, bool an, integer dn, integer nr ) {
     super(x, y, w, h);
     label = new Static_String_Label( "Neighborhoods", "TOLI", x, y, w, h );
     o_e = o;
@@ -3223,12 +3226,12 @@ class Neighborhood_list extends UIElement {
     set = new ArrayList();
     m = 6;
     lm = 0.15 * (w-16);
-    unit_h = h/2.5;
+    unit_h = 1.2 * (w -lm -16 -m -m);
     scroll = new floating_point( 0 );
     scrollbar = new Vertical_Scrollbar( x + w - 16, y, 16, h, scroll, unit_h+m, 0, 0 );
     scrollbar.update( h );
     float bw = (w-3*m-16)*0.5;
-    PM = new PlusMinus_Int( m, m, bw, 32, "", "C", ns, 2 );
+    PM = new PlusMinus_Int( m, m, bw, 32, "", "C", nr, 1 );
     TB = new ToggleButton( 2*m +bw, m, bw, 32, "add", "C", an );
   }
   

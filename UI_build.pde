@@ -1,6 +1,6 @@
 UISet ui;
 
-integer open_editor, neigh_size, del_neigh;
+integer open_editor, neigh_radius, del_neigh;
 bool add_neigh, run;
 
 void build_ui(){
@@ -11,13 +11,13 @@ void build_ui(){
   open_editor = new integer(-1);
   add_neigh = new bool();
   del_neigh = new integer(-1);
-  neigh_size = new integer(5);
+  neigh_radius = new integer(2);
   
   ui.addLabel( 0, 0, "Cellular Automata Suite 1.0", "C" );
   
   ui.Hx = 2.9;
   ui.Vx = 25.9;
-  ui.addNeighborhood_list( 0, 2, open_editor, add_neigh, del_neigh, neigh_size );
+  ui.addNeighborhood_list( 0, 2, open_editor, add_neigh, del_neigh, neigh_radius );
   ui.set[0].add( neighborhoods.get(0) );
   
   ui.Hx = 10.9;
