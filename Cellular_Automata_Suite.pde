@@ -19,9 +19,10 @@ TO-DO
 */
 
 ArrayList<float[][]> neighborhoods;
+IntList nbh_counts;
 ArrayList<Rule> rules;
 IntList states;
-PFont georgia_big;
+PFont georgia_big, arial;
 
 void setup() {
   size( displayWidth, 705 );
@@ -30,10 +31,15 @@ void setup() {
   
   neighborhoods = new ArrayList();
   neighborhoods.add( new float[5][5] );
+  nbh_counts = new IntList();
+  nbh_counts.append( 0 );
   states = new IntList();
+  states.append( color(255) );
+  states.append( color( 0 ) );
   
   ui_font = loadFont( "Georgia-16.vlw" );
   georgia_big = loadFont( "Georgia-23.vlw" );
+  arial = loadFont( "ArialMT-24.vlw" );
   build_ui();
 }
 
@@ -60,9 +66,9 @@ class Rule{
   int neighborhood, target_state, resulting_state;
   boolean[] range;
   boolean ELSE;
-  Rule( int n, float[][] N, int ts, int rs ){
+  Rule( int n, ArrayList<float[][]> N, int ts, int rs ){
     neighborhood = n;
-    range = new boolean[ cell_count( N ) ];
+    range = new boolean[ cell_count( N.get(n) ) ] ;
     target_state = ts;
     resulting_state = rs;
     ELSE = false;

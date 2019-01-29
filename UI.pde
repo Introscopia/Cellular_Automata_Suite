@@ -874,18 +874,18 @@ class UISet {
     else println( "addListSelect failed: not columning nor rowing." );
   }
   //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-  void addNeighborhood_list (int l, int c, integer o_e, bool a, integer dn, integer nr ) {
+  void addNeighborhood_list (int l, int c, integer o_e, bool a, integer dn, integer nr, IntList nbhc ) {
     addToIndices( l, c );
     float x = X + margin + (l * column_width) + ( ( (ceil(Hx) - Hx) * column_width ) / 2f );
     float y = Y + margin + (c * line_height) + ( ( (ceil(Vx) - Vx ) * line_height) / 2f );
-    set = (UIElement[]) append( set, new Neighborhood_list( x, y, Hx * column_width, Vx * line_height, o_e, a, dn, nr ) );
+    set = (UIElement[]) append( set, new Neighborhood_list( x, y, Hx * column_width, Vx * line_height, o_e, a, dn, nr, nbhc ) );
   }
   //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-  void addRule_list ( int l, int c ){
+  void addRule_list ( int l, int c, IntList nbhc ){
     addToIndices( l, c );
     float x = X + margin + (l * column_width) + ( ( (ceil(Hx) - Hx) * column_width ) / 2f );
     float y = Y + margin + (c * line_height) + ( ( (ceil(Vx) - Vx ) * line_height) / 2f );
-    set = (UIElement[]) append( set, new Rule_list( x, y, Hx * column_width, Vx * line_height ) );
+    set = (UIElement[]) append( set, new Rule_list( x, y, Hx * column_width, Vx * line_height, nbhc ) );
   }
   //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
   void addState_bar ( int l, int c, IntList i ) {
@@ -1196,9 +1196,9 @@ class Vertical_Scrollbar{
     hy = y + w;
     bh = h-(2*w);
     up = new  NumAddButton_Flo(x, y, w, w, n, step);
-    up.face = char(11205);//11165);
+    //up.face = char(11205);//11165);
     down = new  NumAddButton_Flo(x, y + h - w, w, w, n, -step);
-    down.face = char(11206);//11167);
+    //down.face = char(11206);//11167);
     tri = createGraphics( floor(w), floor(w) );
     float r = 0.3*w;
     float c = 0.5*w;
@@ -1300,11 +1300,11 @@ class UIElement {
   void mouseMoved( boolean Q ){}
   void mouseMoved( boolean Q, float mx, float my ){}
   void mousePressed( boolean Q ){}
-  void mousePressed( boolean Q, float mx, float my ){}
+  boolean mousePressed( boolean Q, float mx, float my ){ return false; }
   void mouseReleased( boolean Q ){}
   void mouseReleased( boolean Q, float mx, float my ){}
   void mouseDragged( boolean Q ){}
-  void mouseDragged( boolean Q, float mx, float my ){}
+  boolean mouseDragged( boolean Q, float mx, float my ){ return false; }
   void keyTyped(){}
   void keyReleased(){}
   
@@ -1327,6 +1327,8 @@ class UIElement {
   void add(char set, String label, String posos) {
   }
   void add( float[][] a ){
+  }
+  void add( Rule r, ArrayList<float[][]> N, IntList S ){
   }
   void setColor( color c ) {
   }
@@ -1551,8 +1553,8 @@ class NumAddButton_Flo extends UIElement {
     super(x, y, w, h);
     incumbency = i;
     this.step = step;
-    if( step > 0 ) face = char(10133);
-    else if( step < 0 ) face = char(10134);
+    if( step > 0 ) face = '+';//char(10133);
+    else if( step < 0 ) face = '-';//char(10134);
     else face = '•';
   }
   
@@ -3110,7 +3112,7 @@ class Neighborhood_widget extends UIElement {
       }
     }
   }
-  void mousePressed( boolean Q, float mx, float my  ){
+  boolean mousePressed( boolean Q, float mx, float my  ){
     if( Q ){
       mx -= m;
       my -= y + m;
@@ -3121,8 +3123,10 @@ class Neighborhood_widget extends UIElement {
         else if( incumbency[i][j] == 1 ) incumbency[i][j] = 0;
         else incumbency[i][j] = 0;
         p = incumbency[i][j];
+        return true;
       }
     }
+    return false;
   }
   
   void mouseDragged( boolean Q ){
@@ -3136,7 +3140,7 @@ class Neighborhood_widget extends UIElement {
       }                                                                                                                                                                                                               
     }
   }
-  void mouseDragged( boolean Q, float mx, float my ){
+  boolean mouseDragged( boolean Q, float mx, float my ){
     if( Q ){
       mx -= m;
       my -= y + m;
@@ -3144,8 +3148,10 @@ class Neighborhood_widget extends UIElement {
       int j = floor( my / e );
       if( i >= 0 && i < incumbency.length && j >= 0 && j < incumbency.length ){
         incumbency[i][j] = p;
+        return true;
       }                                                                                                                                                                                                               
     }
+    return false;
   }
   
   void mouseReleased( boolean Q ){
@@ -3212,18 +3218,20 @@ class Neighborhood_widget extends UIElement {
 
 class Neighborhood_list extends UIElement {
   ArrayList<Neighborhood_widget> set;
+  IntList counts;
   integer o_e, dn;
   floating_point scroll;
   Vertical_Scrollbar scrollbar;
   float unit_h, m, lm;
   PlusMinus_Int PM;
   ToggleButton TB;
-  Neighborhood_list (float x, float y, float w, float h, integer o, bool an, integer dn, integer nr ) {
+  Neighborhood_list (float x, float y, float w, float h, integer o, bool an, integer dn, integer nr, IntList nbhc ) {
     super(x, y, w, h);
     label = new Static_String_Label( "Neighborhoods", "TOLI", x, y, w, h );
     o_e = o;
     this.dn = dn;
     set = new ArrayList();
+    counts = nbhc;
     m = 6;
     lm = 0.15 * (w-16);
     unit_h = 1.2 * (w -lm -16 -m -m);
@@ -3276,7 +3284,9 @@ class Neighborhood_list extends UIElement {
       int p = -1;
       if( mx > lm && mx < w-16-m ) p = floor( my/(unit_h+m) );
       for(int i = 0; i <set.size(); i++){
-        set.get(i).mousePressed( p == i, mx-lm, my+m );
+        if( set.get(i).mousePressed( p == i, mx-lm, my+m ) ){
+          counts.set( i, cell_count( set.get(i).incumbency ) );
+        }
       }
     }
   }
@@ -3289,7 +3299,9 @@ class Neighborhood_list extends UIElement {
         int p = -1;
         if( mx > lm && mx < w-16-m ) p = floor( my/(unit_h+m) );
         for(int i = 0; i <set.size(); i++){
-          set.get(i).mouseDragged( p == i, mx-lm, my+m );
+          if( set.get(i).mouseDragged( p == i, mx-lm, my+m ) ){
+            counts.set( i, cell_count( set.get(i).incumbency ) );
+          }
         }
       }                                                                                                                                                                                                              
     }
@@ -3333,7 +3345,7 @@ class Neighborhood_list extends UIElement {
   void display(ColorScheme CS) {
     fill(CS.dimmer);    
     Rect();
-    clip( x, y+1, w, h-1 );
+    clip( x, y+1, w, h-2 );
     pushMatrix();
     translate( x, y +scroll.n );
     for(int i = 0; i <set.size(); i++){
@@ -3351,19 +3363,150 @@ class Neighborhood_list extends UIElement {
     label.display();
   }
 }
+//==================================================================================
 
+class Greek_letter_Cycler extends UIElement {
+  ArrayList<float[][]> size_ref;
+  integer incumbency;
+  boolean highlighted;
+  float cx, cy;
+  Greek_letter_Cycler (float x, float y, float w, float h, integer i, ArrayList<float[][]> sr ) {
+    super(x, y, w, h);
+    cx = x + (w*0.5);
+    cy = y + (h*0.5);
+    incumbency = i;
+    size_ref = sr;
+  }
+  void mouseMoved( boolean Q ){
+    highlighted = Q;
+  }
+  void mouseReleased( boolean Q ){
+    if( Q ){
+      incumbency.n++;
+      if( incumbency.n >= size_ref.size() ) incumbency.n = 0;
+    }
+  }
+  void display(ColorScheme CS) {
+    if( highlighted ) fill( CS.bright );
+    else fill(CS.dim);
+    Rect();
+    pushStyle();
+    fill(0);
+    textFont(georgia_big, 23);
+    textAlign( CENTER, CENTER );
+    text(char(945+incumbency.n), cx, cy );
+    popStyle();
+  }
+}
+//==================================================================================
+
+class Color_Cycler extends UIElement {
+  IntList list;
+  integer incumbency;
+  Color_Cycler (float x, float y, float w, float h, integer i, IntList l ) {
+    super(x, y, w, h);
+    incumbency = i;
+    list = l;
+  }
+  void mouseReleased( boolean Q ){
+    if( Q ){
+      incumbency.n++;
+      if( incumbency.n >= list.size() ) incumbency.n = 0;
+    }
+  }
+  void display(ColorScheme CS) {
+    pushStyle();
+    fill( list.get(incumbency.n) );
+    Rect();
+    popStyle();
+  }
+}
 //==================================================================================
 
 class Rule_widget extends UIElement {
   Rule incumbency;
-  Rule_widget (float x, float y, float w, float h, Rule r ) {
+  Greek_letter_Cycler glc;
+  Color_Cycler cct, ccr;
+  float m = 6, E;
+  float[] tri;
+  float unit_e, bx, bw;
+  ArrayList<float[][]> N;
+  boolean p;
+  Rule_widget (float x, float y, float w, float h, Rule r, ArrayList<float[][]> N, IntList S ) {
     super(x, y, w, h);
     incumbency = r;
+    unit_e = h-m-m;
+    this.N = N;
+    glc = new Greek_letter_Cycler( m, m, unit_e, unit_e, new integer(0), N );
+    cct = new Color_Cycler( unit_e + (4*m), m, unit_e, unit_e, new integer(0), S );
+    ccr = new Color_Cycler( 2*unit_e + (8*m), m, unit_e, unit_e, new integer(0), S );
+    tri = new float[6];
+    tri[0] =  2*unit_e + (5*m);
+    tri[1] =  m + (unit_e*0.35);
+    tri[2] =  2*unit_e + (7*m);
+    tri[3] =  m + (unit_e*0.5);
+    tri[4] =  2*unit_e + (5*m);
+    tri[5] =  m + (unit_e*0.65);
+    bx = 3*unit_e + (9*m);
+    bw = (w-m) - bx;
   }
-  void display(ColorScheme CS) {
+  
+  boolean mousePressed( boolean Q, float mx, float my ){
+    if( Q ){
+      mx -= bx;
+      int i = floor( mx / ( bw / float(incumbency.range.length) ) );
+      if( i >= 0 && i < incumbency.range.length ){
+        if( incumbency.range[i] == false ) incumbency.range[i] = true;
+        else if( incumbency.range[i] == true ) incumbency.range[i] = false;
+        else incumbency.range[i] = false;
+        p = incumbency.range[i];
+      }                                                                                                                                                                                                               
+    }
+    return false;
+  }
+  boolean mouseDragged( boolean Q, float mx, float my ){
+    if( Q ){
+      mx -= bx;
+      int i = floor( mx / ( bw / float(incumbency.range.length) ) );
+      if( i >= 0 && i < incumbency.range.length ){
+        incumbency.range[i] = p;
+      }
+    }
+    return false;
+  }
+  void mouseReleased( boolean Q, float mx, float my ){
+    if( Q ){
+      if( my > m && my < y+h-m ){
+        if( mx > m && mx < m + unit_e ) glc.mouseReleased( true );
+      }
+    }
+  }
+  
+  void display(ColorScheme CS, int C ) {
     fill(CS.dim);    
     Rect();
-    label.display();
+    pushMatrix();
+    translate( x, y );
+    glc.display(CS);
+    cct.display(CS);
+    fill(0);
+    triangle( tri[0], tri[1], tri[2], tri[3], tri[4], tri[5] );
+    ccr.display(CS);
+    //fill(CS.dimmer);
+    //rect( bx, m, bw, unit_e );
+    if( incumbency.range.length != C ){
+      boolean[] tmp = new boolean[ incumbency.range.length ];
+      arrayCopy( incumbency.range, tmp );
+      incumbency.range = new boolean[ C ];
+      for(int i=0; i < min(incumbency.range.length, tmp.length); i++) incumbency.range[i] = tmp[i];
+      E = bw/float(C);
+    }
+    for(int i=0; i < C; i++){
+      if( incumbency.range[i] ) fill(255, 0, 0 );
+      else fill(CS.dimmer);
+      rect( bx + (E*i), m, E, unit_e );
+    }
+    popMatrix();
   }
 }
 
@@ -3371,17 +3514,82 @@ class Rule_widget extends UIElement {
 
 class Rule_list extends UIElement {
   ArrayList<Rule_widget> set;
-  Rule_list (float x, float y, float w, float h ) {
+  IntList counts;
+  float unit_h, m;
+  floating_point scroll;
+  Vertical_Scrollbar scrollbar;
+  Rule_list (float x, float y, float w, float h, IntList nbhc ) {
     super(x, y, w, h);
     set = new ArrayList();
+    counts = nbhc;
     label = new Static_String_Label( "Rules", "TOLI", x, y, w, h );
+    m = 6;
+    unit_h = (w-16) * 0.08;
+    scroll = new floating_point( 0 );
+    scrollbar = new Vertical_Scrollbar( x + w - 16, y, 16, h, scroll, unit_h+m, 0, 0 );
+    scrollbar.update( h );
   }
-  void add( Rule r ){
-    //set.add( new Rule_widget( r ) );
+  void add( Rule r, ArrayList<float[][]> N, IntList S ){
+    set.add( new Rule_widget( m, m+(set.size()*(unit_h+m)), w-16-m-m, unit_h, r, N, S ) );
+    scrollbar.update( m + set.size()*(unit_h+m) +32 +m );
+  }
+  
+  void mousePressed( boolean Q ){
+    if( Q ){
+      if( mouseX > scrollbar.x ) scrollbar.mouseDragged();
+      else{
+        float mx = mouseX - x;
+        float my = mouseY - y - scroll.n -m;
+        int p = -1;
+        p = floor( my/(unit_h+m) );
+        for(int i = 0; i <set.size(); i++){
+          if( set.get(i).mousePressed( p == i, mx, my+m ) ){}
+        }
+      }
+    }
+  }
+  void mouseDragged( boolean Q ){
+    if( Q ){
+      if( mouseX > scrollbar.x ) scrollbar.mouseDragged();
+      else{
+        float mx = mouseX - x;
+        float my = mouseY - y - scroll.n -m;
+        int p = -1;
+        p = floor( my/(unit_h+m) );
+        for(int i = 0; i <set.size(); i++){
+          if( set.get(i).mouseDragged( p == i, mx, my+m ) ){}
+        }
+      }
+    }
+  }
+  void mouseReleased( boolean Q ){
+    if( Q ){
+      if( mouseX > scrollbar.x ) scrollbar.mouseReleased();
+      else{
+        float mx = mouseX - x;
+        float my = mouseY - y - scroll.n -m;
+        int p = -1;
+        p = floor( my/(unit_h+m) );
+        if( p < set.size() ){
+          for(int i = 0; i <set.size(); i++){
+            set.get(i).mouseReleased( p == i, mx, my );
+          }
+        }
+      }
+    }
   }
   void display(ColorScheme CS) {
     fill(CS.dimmer);    
     Rect();
+    clip( x, y+1, w, h-2 );
+    pushMatrix();
+    translate( x, y +scroll.n );
+    for(int i = 0; i <set.size(); i++){
+      set.get(i).display( CS, counts.get( set.get(i).glc.incumbency.n ) );
+    }
+    popMatrix();
+    noClip();
+    scrollbar.display(CS);
     label.display();
   }
 }
