@@ -347,6 +347,19 @@ class UISet {
     }
     else for (int k = 0; k < set.length; k++) set[k].mouseDragged(false);
   }
+  void mouseWheel( MouseEvent E ){
+    int i = floor((mouseX - X - margin)/column_width);
+    int j = floor((mouseY - Y - margin)/line_height); 
+    if( i >= 0 && j >= 0 && i < indices.length && j < indices[0].length ){
+      if( indices[i][j] >= 0 ){
+        set[ indices[i][j] ].mouseWheel(true, E);
+        for (int k = 0; k < indices[i][j]; k++) set[k].mouseWheel(false, E);
+        for (int k = indices[i][j]+1; k < set.length; k++) set[k].mouseWheel(false, E);
+      }
+      else for (int k = 0; k < set.length; k++) set[k].mouseWheel(false, E);
+    }
+    else for (int k = 0; k < set.length; k++) set[k].mouseWheel(false, E);
+  }
   
   void keyTyped(){
     for (int i = 0; i < set.length; i++) {
@@ -881,11 +894,11 @@ class UISet {
     set = (UIElement[]) append( set, new Neighborhood_list( x, y, Hx * column_width, Vx * line_height, o_e, a, dn, nr, nbhc ) );
   }
   //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-  void addRule_list ( int l, int c, IntList nbhc ){
+  void addRule_list ( int l, int c, IntList nbhc, bool nr, bool er ){
     addToIndices( l, c );
     float x = X + margin + (l * column_width) + ( ( (ceil(Hx) - Hx) * column_width ) / 2f );
     float y = Y + margin + (c * line_height) + ( ( (ceil(Vx) - Vx ) * line_height) / 2f );
-    set = (UIElement[]) append( set, new Rule_list( x, y, Hx * column_width, Vx * line_height, nbhc ) );
+    set = (UIElement[]) append( set, new Rule_list( x, y, Hx * column_width, Vx * line_height, nbhc, nr, er ) );
   }
   //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
   void addState_bar ( int l, int c, IntList i ) {
@@ -1196,9 +1209,9 @@ class Vertical_Scrollbar{
     hy = y + w;
     bh = h-(2*w);
     up = new  NumAddButton_Flo(x, y, w, w, n, step);
-    //up.face = char(11205);//11165);
+    up.face = ' ';//char(11205);//11165);
     down = new  NumAddButton_Flo(x, y + h - w, w, w, n, -step);
-    //down.face = char(11206);//11167);
+    down.face = ' ';//char(11206);//11167);
     tri = createGraphics( floor(w), floor(w) );
     float r = 0.3*w;
     float c = 0.5*w;
@@ -1222,36 +1235,37 @@ class Vertical_Scrollbar{
     K = ( max-min )/( (h-2*w)-hh );
     if( K != K ) K = 0;
   }
-  
-  //mouseReleased and mouseDragged() assume the bar is at the right edge,
+  //the mouse functions assume the bar is at the right edge,
   //and that the mouse has already been checked to be withing the bar's owner's box.
-  void mouseReleased(){
-    dragging = false;
+  void mousePressed(){
     float yi = y + w;
     float yf = y + h - w;
-    if( mouseX > x ){
-      if( mouseY < yi ) up.mouseReleased( true );
-      else if( mouseY > yi && mouseY < yf ){
-        incumbency.n += K*( pmouseY - mouseY );
-      }
-      else down.mouseReleased( true );
+    if( mouseX > x && mouseY > yi && mouseY < yf ){
+      dragging = true;
     }
-    incumbency.n = constrain( incumbency.n, min, max );
-    if( min < 0 ) hy = map( incumbency.n, min, 0, yf- hh, yi );
   }
   void mouseDragged(){
-    float yi = y + w;
-    float yf = y + h - w;
     if( dragging ){
+      float yi = y + w;
+      float yf = y + h - w;
       incumbency.n = constrain( incumbency.n + (K*( pmouseY - mouseY )), min, max );
       if( min < 0 ) hy = map( incumbency.n, min, 0, yf- hh, yi );
     }
-    else{
-      // this assumes the scrollbar is inside the rect of a UIElement (or whatever)
-      // and that the mouse has already been checked to be inside this rect.
-      if( mouseX > x && mouseY > yi && mouseY < yf ){
-        dragging = true;
+  }
+  void mouseReleased( boolean Q ){
+    dragging = false;
+    if( Q ){
+      float yi = y + w;
+      float yf = y + h - w;
+      if( mouseX > x ){
+        if( mouseY < yi ) up.mouseReleased( true );
+        else if( mouseY > yi && mouseY < yf ){
+          incumbency.n += K*( pmouseY - mouseY );
+        }
+        else down.mouseReleased( true );
       }
+      incumbency.n = constrain( incumbency.n, min, max );
+      if( min < 0 ) hy = map( incumbency.n, min, 0, yf- hh, yi );
     }
   }
   void display(ColorScheme CS){
@@ -1302,9 +1316,10 @@ class UIElement {
   void mousePressed( boolean Q ){}
   boolean mousePressed( boolean Q, float mx, float my ){ return false; }
   void mouseReleased( boolean Q ){}
-  void mouseReleased( boolean Q, float mx, float my ){}
+  boolean mouseReleased( boolean Q, float mx, float my ){ return false; }
   void mouseDragged( boolean Q ){}
   boolean mouseDragged( boolean Q, float mx, float my ){ return false; }
+  void mouseWheel( boolean Q, MouseEvent E ){}
   void keyTyped(){}
   void keyReleased(){}
   
@@ -1745,7 +1760,7 @@ class PlusMinus_Int extends UIElement {
       minus.mouseReleased(false);
     }
   }
-  void mouseReleased( boolean Q, float mx, float my ){
+  boolean mouseReleased( boolean Q, float mx, float my ){
     if( Q ){
       plus.mouseReleased( mx > x +w -h );
       minus.mouseReleased( mx < x + h );
@@ -1754,6 +1769,7 @@ class PlusMinus_Int extends UIElement {
       plus.mouseReleased(false);
       minus.mouseReleased(false);
     }
+    return false; // I'm not using this, it's only to satisfy the "The return type is incompatible with UIElement"
   }
   
   void display(ColorScheme CS) {
@@ -2232,11 +2248,9 @@ class TextDisplay_vertical extends UIElement {
   }
   
   void mouseReleased( boolean Q ){
-    if( Q ){
-      if( d != null ){
-        scrollbar.mouseReleased();
-        this.render();
-      }
+    if( d != null ){
+      scrollbar.mouseReleased( Q );
+      this.render();
     }
   }
   void mouseDragged( boolean Q ){
@@ -2780,9 +2794,9 @@ class ListSelect extends UIElement{
     }
   }
   void mouseReleased( boolean Q ){
+    scrollbar.mouseReleased( Q );
     if( Q ){
-      if( mouseX > scrollbar.x ) scrollbar.mouseReleased();
-      else{
+      if( mouseX < scrollbar.x ) {
         int Y = this.Y();
         if( Y != selected.n ){
           //if( selected instanceof integer_p ) selected.set( this.Y() );
@@ -3172,7 +3186,7 @@ class Neighborhood_widget extends UIElement {
       clear.b = false;
     }
   }
-  void mouseReleased( boolean Q, float mx, float my ){
+  boolean mouseReleased( boolean Q, float mx, float my ){
     my -= y;
     if( mx > m && mx < w-m && my > edt.y && my < edt.bottom() ){
       int p = floor((mx-m)/edt.w);
@@ -3187,7 +3201,9 @@ class Neighborhood_widget extends UIElement {
         }
       }
       clear.b = false;
+      return true;
     }
+    return false;
   }
   
   void display(ColorScheme CS) {
@@ -3223,8 +3239,8 @@ class Neighborhood_list extends UIElement {
   floating_point scroll;
   Vertical_Scrollbar scrollbar;
   float unit_h, m, lm;
-  PlusMinus_Int PM;
-  ToggleButton TB;
+  PlusMinus_Int radius_selector;
+  ToggleButton add_button;
   Neighborhood_list (float x, float y, float w, float h, integer o, bool an, integer dn, integer nr, IntList nbhc ) {
     super(x, y, w, h);
     label = new Static_String_Label( "Neighborhoods", "TOLI", x, y, w, h );
@@ -3239,15 +3255,15 @@ class Neighborhood_list extends UIElement {
     scrollbar = new Vertical_Scrollbar( x + w - 16, y, 16, h, scroll, unit_h+m, 0, 0 );
     scrollbar.update( h );
     float bw = (w-3*m-16)*0.5;
-    PM = new PlusMinus_Int( m, m, bw, 32, "", "C", nr, 1 );
-    TB = new ToggleButton( 2*m +bw, m, bw, 32, "add", "C", an );
+    radius_selector = new PlusMinus_Int( m, m, bw, 32, "", "C", nr, 1 );
+    add_button = new ToggleButton( 2*m +bw, m, bw, 32, "add", "C", an );
   }
   
   void add( float[][] a ){
     set.add( new Neighborhood_widget( lm, m+set.size()*(unit_h+m), (0.85 * (w-16))-m, unit_h, a, o_e, set.size() ) );
     scrollbar.update( m + set.size()*(unit_h+m) +32 +m );
-    PM.increment_y( unit_h+m );
-    TB.increment_y( unit_h+m );
+    radius_selector.increment_y( unit_h+m );
+    add_button.increment_y( unit_h+m );
   }
   
   void mouseMoved( boolean Q ){
@@ -3262,38 +3278,41 @@ class Neighborhood_list extends UIElement {
             set.get(i).mouseMoved( p == i, mx-lm, my );
           }
         }
-        PM.mouseMoved( false, 0 , 0 );
-        TB.mouseMoved( false );
+        radius_selector.mouseMoved( false, 0 , 0 );
+        add_button.mouseMoved( false );
       }
       else{
-        PM.mouseMoved( mx > m && mx < m +PM.w && my < PM.y +PM.h -m, mx, my );
-        TB.mouseMoved( mx > (2*m) +PM.w && mx < (2*m)+(2*PM.w) && my < PM.y +PM.h -m );
+        radius_selector.mouseMoved( mx > m && mx < m +radius_selector.w && my < radius_selector.y +radius_selector.h -m, mx, my );
+        add_button.mouseMoved( mx > (2*m) +radius_selector.w && mx < (2*m)+(2*radius_selector.w) && my < radius_selector.y +radius_selector.h -m );
         for(int i = 0; i <set.size(); i++) set.get(i).mouseMoved( false, 0 , 0 );
       }
     }
     else{
       for(int i = 0; i <set.size(); i++) set.get(i).mouseMoved( false, 0 , 0 );
-      PM.mouseMoved( false, 0 , 0 );
-      TB.mouseMoved( false );
+      radius_selector.mouseMoved( false, 0 , 0 );
+      add_button.mouseMoved( false );
     }
   }
   void mousePressed( boolean Q ){
     if( Q ){
-      float mx = mouseX - x;
-      float my = mouseY - y - scroll.n -m;
-      int p = -1;
-      if( mx > lm && mx < w-16-m ) p = floor( my/(unit_h+m) );
-      for(int i = 0; i <set.size(); i++){
-        if( set.get(i).mousePressed( p == i, mx-lm, my+m ) ){
-          counts.set( i, cell_count( set.get(i).incumbency ) );
+      if( mouseX > scrollbar.x ) scrollbar.mousePressed();
+      else{
+        float mx = mouseX - x;
+        float my = mouseY - y - scroll.n -m;
+        int p = -1;
+        if( mx > lm && mx < w-16-m ) p = floor( my/(unit_h+m) );
+        for(int i = 0; i <set.size(); i++){
+          if( set.get(i).mousePressed( p == i, mx-lm, my+m ) ){
+            counts.set( i, cell_count( set.get(i).incumbency ) );
+          }
         }
       }
     }
   }
   void mouseDragged( boolean Q ){
+    scrollbar.mouseDragged();
     if( Q ){
-      if( mouseX > scrollbar.x ) scrollbar.mouseDragged();
-      else{
+      if( mouseX < scrollbar.x ){
         float mx = mouseX - x;
         float my = mouseY - y - scroll.n -m;
         int p = -1;
@@ -3307,9 +3326,9 @@ class Neighborhood_list extends UIElement {
     }
   }
   void mouseReleased( boolean Q ){
+    scrollbar.mouseReleased( Q );
     if(Q){
-      if( mouseX > scrollbar.x ) scrollbar.mouseReleased();
-      else{
+      if( mouseX < scrollbar.x ){
         float mx = mouseX - x;
         float my = mouseY - y - scroll.n -m;
         int p = -1;
@@ -3317,13 +3336,15 @@ class Neighborhood_list extends UIElement {
         if( p < set.size() ){
           if( mx > lm ){
             for(int i = 0; i <set.size(); i++){
-              set.get(i).mouseReleased( p == i, mx-lm, my );
+              if( set.get(i).mouseReleased( p == i, mx-lm, my ) ){
+                counts.set( i, cell_count( set.get(i).incumbency ) );
+              }
             }
           }
         }
         else{
-          PM.mouseReleased( mx > m && mx < m+PM.w && my < PM.y +PM.h -m, mx, my );
-          TB.mouseReleased( mx > (2*m)+PM.w && mx < (2*m)+(2*PM.w) && my < PM.y +PM.h -m );
+          radius_selector.mouseReleased( mx > m && mx < m+radius_selector.w && my < radius_selector.y +radius_selector.h -m, mx, my );
+          add_button.mouseReleased( mx > (2*m)+radius_selector.w && mx < (2*m)+(2*radius_selector.w) && my < radius_selector.y +radius_selector.h -m );
         }
       }
       for(int i = set.size()-1; i >= 0; i--){
@@ -3334,8 +3355,8 @@ class Neighborhood_list extends UIElement {
             set.get(j).y -= (unit_h+m);
           }
           scrollbar.update( m + set.size()*(unit_h+m) +32 +m );
-          PM.increment_y( -(unit_h+m) );
-          TB.increment_y( -(unit_h+m) );
+          radius_selector.increment_y( -(unit_h+m) );
+          add_button.increment_y( -(unit_h+m) );
           break;
         }
       }
@@ -3355,8 +3376,8 @@ class Neighborhood_list extends UIElement {
       textFont(ui_font, textsize);
       set.get(i).display( CS );
     }
-    PM.display(CS);
-    TB.display(CS);
+    radius_selector.display(CS);
+    add_button.display(CS);
     popMatrix();
     noClip();
     scrollbar.display(CS);
@@ -3426,7 +3447,7 @@ class Color_Cycler extends UIElement {
 class Rule_widget extends UIElement {
   Rule incumbency;
   Greek_letter_Cycler glc;
-  Color_Cycler cct, ccr;
+  Color_Cycler cct, ccc, ccr;
   float m = 6, E;
   float[] tri;
   float unit_e, bx, bw;
@@ -3438,22 +3459,24 @@ class Rule_widget extends UIElement {
     unit_e = h-m-m;
     this.N = N;
     glc = new Greek_letter_Cycler( m, m, unit_e, unit_e, new integer(0), N );
-    cct = new Color_Cycler( unit_e + (4*m), m, unit_e, unit_e, new integer(0), S );
-    ccr = new Color_Cycler( 2*unit_e + (8*m), m, unit_e, unit_e, new integer(0), S );
+    ccc = new Color_Cycler( unit_e + (4*m), m, unit_e, unit_e, new integer(0), S );
+    bx = 2*unit_e + (5*m);
+    bw = w - bx -(2*unit_e) -(6*m);
+    E = bw/float(incumbency.range.length);
+    cct = new Color_Cycler( bx +bw +m, m, unit_e, unit_e, new integer(0), S );
+    ccr = new Color_Cycler( bx +bw +unit_e +(5*m), m, unit_e, unit_e, new integer(0), S );
     tri = new float[6];
-    tri[0] =  2*unit_e + (5*m);
+    tri[0] =  bx +bw +(2*m) +unit_e;
     tri[1] =  m + (unit_e*0.35);
-    tri[2] =  2*unit_e + (7*m);
+    tri[2] =  bx +bw +(4*m) +unit_e;
     tri[3] =  m + (unit_e*0.5);
-    tri[4] =  2*unit_e + (5*m);
+    tri[4] =  bx +bw +(2*m) +unit_e;
     tri[5] =  m + (unit_e*0.65);
-    bx = 3*unit_e + (9*m);
-    bw = (w-m) - bx;
   }
   
   boolean mousePressed( boolean Q, float mx, float my ){
     if( Q ){
-      mx -= bx;
+      mx -= bx+m;
       int i = floor( mx / ( bw / float(incumbency.range.length) ) );
       if( i >= 0 && i < incumbency.range.length ){
         if( incumbency.range[i] == false ) incumbency.range[i] = true;
@@ -3466,7 +3489,7 @@ class Rule_widget extends UIElement {
   }
   boolean mouseDragged( boolean Q, float mx, float my ){
     if( Q ){
-      mx -= bx;
+      mx -= bx+m;
       int i = floor( mx / ( bw / float(incumbency.range.length) ) );
       if( i >= 0 && i < incumbency.range.length ){
         incumbency.range[i] = p;
@@ -3474,12 +3497,16 @@ class Rule_widget extends UIElement {
     }
     return false;
   }
-  void mouseReleased( boolean Q, float mx, float my ){
+  boolean mouseReleased( boolean Q, float mx, float my ){
     if( Q ){
       if( my > m && my < y+h-m ){
         if( mx > m && mx < m + unit_e ) glc.mouseReleased( true );
+        if( mx > ccc.x && mx < ccc.x + unit_e ) ccc.mouseReleased( true );
+        if( mx > cct.x && mx < cct.x + unit_e ) cct.mouseReleased( true );
+        if( mx > ccr.x && mx < ccr.x + unit_e ) ccr.mouseReleased( true );
       }
     }
+    return false;
   }
   
   void display(ColorScheme CS, int C ) {
@@ -3487,6 +3514,7 @@ class Rule_widget extends UIElement {
     Rect();
     pushMatrix();
     translate( x, y );
+    ccc.display(CS);
     glc.display(CS);
     cct.display(CS);
     fill(0);
@@ -3494,17 +3522,19 @@ class Rule_widget extends UIElement {
     ccr.display(CS);
     //fill(CS.dimmer);
     //rect( bx, m, bw, unit_e );
-    if( incumbency.range.length != C ){
-      boolean[] tmp = new boolean[ incumbency.range.length ];
-      arrayCopy( incumbency.range, tmp );
-      incumbency.range = new boolean[ C ];
-      for(int i=0; i < min(incumbency.range.length, tmp.length); i++) incumbency.range[i] = tmp[i];
-      E = bw/float(C);
-    }
-    for(int i=0; i < C; i++){
-      if( incumbency.range[i] ) fill(255, 0, 0 );
-      else fill(CS.dimmer);
-      rect( bx + (E*i), m, E, unit_e );
+    if( C >= 0 ){
+      if( incumbency.range.length != C ){
+        boolean[] tmp = new boolean[ incumbency.range.length ];
+        arrayCopy( incumbency.range, tmp );
+        incumbency.range = new boolean[ C ];
+        for(int i=0; i < min(incumbency.range.length, tmp.length); i++) incumbency.range[i] = tmp[i];
+        E = bw/float(C);
+      }
+      for(int i=0; i < C; i++){
+        if( incumbency.range[i] ) fill(255, 0, 0 );
+        else fill(CS.dimmer);
+        rect( bx + (E*i), m, E, unit_e );
+      }
     }
     popMatrix();
   }
@@ -3518,7 +3548,8 @@ class Rule_list extends UIElement {
   float unit_h, m;
   floating_point scroll;
   Vertical_Scrollbar scrollbar;
-  Rule_list (float x, float y, float w, float h, IntList nbhc ) {
+  ToggleButton new_rule, else_rule;
+  Rule_list (float x, float y, float w, float h, IntList nbhc, bool nr, bool er ) {
     super(x, y, w, h);
     set = new ArrayList();
     counts = nbhc;
@@ -3528,15 +3559,26 @@ class Rule_list extends UIElement {
     scroll = new floating_point( 0 );
     scrollbar = new Vertical_Scrollbar( x + w - 16, y, 16, h, scroll, unit_h+m, 0, 0 );
     scrollbar.update( h );
+    new_rule = new ToggleButton( m, m, 0.2*w, 32, "New Rule", "C", nr );
+    else_rule = new ToggleButton( new_rule.right()+m, m, 0.2*w, 32, "New Else Rule", "C", er );
   }
   void add( Rule r, ArrayList<float[][]> N, IntList S ){
     set.add( new Rule_widget( m, m+(set.size()*(unit_h+m)), w-16-m-m, unit_h, r, N, S ) );
     scrollbar.update( m + set.size()*(unit_h+m) +32 +m );
+    new_rule.increment_y( unit_h+m );
+    else_rule.increment_y( unit_h+m );
   }
-  
+  void mouseMoved( boolean Q ){
+    float mx = mouseX - x;
+    float my = mouseY - y - scroll.n -m;
+    if( my > m +set.size()*( unit_h+m ) ){
+      new_rule.mouseMoved( mx > m && mx < new_rule.right() && my < new_rule.bottom() -m );
+      else_rule.mouseMoved( mx > else_rule.x && mx < else_rule.right() && my < else_rule.bottom() -m );
+    }
+  }
   void mousePressed( boolean Q ){
     if( Q ){
-      if( mouseX > scrollbar.x ) scrollbar.mouseDragged();
+      if( mouseX > scrollbar.x ) scrollbar.mousePressed();
       else{
         float mx = mouseX - x;
         float my = mouseY - y - scroll.n -m;
@@ -3549,9 +3591,9 @@ class Rule_list extends UIElement {
     }
   }
   void mouseDragged( boolean Q ){
+    scrollbar.mouseDragged();
     if( Q ){
-      if( mouseX > scrollbar.x ) scrollbar.mouseDragged();
-      else{
+      if( mouseX < scrollbar.x ){
         float mx = mouseX - x;
         float my = mouseY - y - scroll.n -m;
         int p = -1;
@@ -3563,11 +3605,15 @@ class Rule_list extends UIElement {
     }
   }
   void mouseReleased( boolean Q ){
+    scrollbar.mouseReleased( Q );
     if( Q ){
-      if( mouseX > scrollbar.x ) scrollbar.mouseReleased();
+      float mx = mouseX - x;
+      float my = mouseY - y - scroll.n -m;
+      if( my > m +set.size()*( unit_h+m ) ){
+        new_rule.mouseReleased( mx > m && mx < m +new_rule.w && my < new_rule.y +new_rule.h -m );
+        else_rule.mouseReleased( mx > else_rule.x && mx < else_rule.x +else_rule.w && my < else_rule.y +else_rule.h -m );
+      }
       else{
-        float mx = mouseX - x;
-        float my = mouseY - y - scroll.n -m;
         int p = -1;
         p = floor( my/(unit_h+m) );
         if( p < set.size() ){
@@ -3584,9 +3630,16 @@ class Rule_list extends UIElement {
     clip( x, y+1, w, h-2 );
     pushMatrix();
     translate( x, y +scroll.n );
-    for(int i = 0; i <set.size(); i++){
-      set.get(i).display( CS, counts.get( set.get(i).glc.incumbency.n ) );
+    for(int i = 0; i < set.size(); i++){
+      if( set.get(i).glc.incumbency.n < counts.size() ){
+        set.get(i).display( CS, counts.get( set.get(i).glc.incumbency.n ) );
+      }
+      else{
+        set.get(i).display( CS, -1 );
+      }
     }
+    new_rule.display(CS);
+    else_rule.display(CS);
     popMatrix();
     noClip();
     scrollbar.display(CS);
@@ -3598,14 +3651,42 @@ class Rule_list extends UIElement {
 
 class State_bar extends UIElement {
   IntList incumbency;
+  float m, unit_e;
+  int I;
   State_bar (float x, float y, float w, float h, IntList i ) {
     super(x, y, w, h);
     label = new Static_String_Label( "States", "TOLI", x, y, w, h );
     incumbency = i;
+    m = 6;
+    unit_e = h -16 -m -m;
+    I = -1;
+  }
+  void mouseMoved( boolean Q ){
+    float mx = mouseX - x;
+    float my = mouseY - y;
+    I = -1;
+    if( my > m && my < h -16 -m ){
+      I = floor( mx / (unit_e + m) );
+      if( I >= incumbency.size() ) I = -1;
+    }
   }
   void display(ColorScheme CS) {
     fill(CS.dimmer);    
     Rect();
     label.display();
+    pushMatrix();
+    translate( x, y );
+    for(int i=0; i < incumbency.size(); i++){
+      fill( incumbency.get(i) );
+      rect( m + (i*(unit_e+m)), m, unit_e, unit_e );
+    }
+    if( I > -1 ){
+      fill( CS.dim );
+      float X = m + (I*(unit_e+m)) + (0.8*unit_e);
+      rect( X, m, 0.2*unit_e, 0.2*unit_e );
+      fill(0);
+      text( "x", X+6, m+3 );
+    }
+    popMatrix();
   }
 }

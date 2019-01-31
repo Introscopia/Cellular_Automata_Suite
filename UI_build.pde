@@ -1,7 +1,7 @@
 UISet ui;
 
 integer open_editor, neigh_radius, del_neigh;
-bool add_neigh, save, load, run;
+bool add_neigh, add_rule, add_else_rule, save, load, run;
 
 void build_ui(){
   ui = new UISet( 3, 14, 28, 14, 1 );
@@ -12,6 +12,8 @@ void build_ui(){
   load = new bool();
   open_editor = new integer(-1);
   add_neigh = new bool();
+  add_rule = new bool();
+  add_else_rule = new bool();
   del_neigh = new integer(-1);
   neigh_radius = new integer(2);
   
@@ -24,8 +26,8 @@ void build_ui(){
   
   ui.Hx = 10.9;
   ui.Vx = 19.9;
-  ui.addRule_list( 3, 2, nbh_counts );
-  for(int i=0; i < 3; i++) ui.set[1].add( new Rule( 0, neighborhoods, 0, 1 ), neighborhoods, states );
+  ui.addRule_list( 3, 2, nbh_counts, add_rule, add_else_rule );
+  ui.set[1].add( rules.get(0), neighborhoods, states );
   
   ui.Hx = 8.9;
   ui.Vx = 4.9;

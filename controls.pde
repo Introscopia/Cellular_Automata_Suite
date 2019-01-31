@@ -1,7 +1,6 @@
 void mouseMoved() {
   ui.mouseMoved();
 }
-
 void mousePressed() {
   ui.mousePressed();
 }
@@ -12,6 +11,9 @@ void mouseReleased() {
 
 void mouseDragged() {
   ui.mouseDragged();
+}
+void mouseWheel(MouseEvent E) {
+  ui.mouseWheel( E );
 }
 
 void keyTyped() {
