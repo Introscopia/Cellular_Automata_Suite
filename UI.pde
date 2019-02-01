@@ -887,18 +887,18 @@ class UISet {
     else println( "addListSelect failed: not columning nor rowing." );
   }
   //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-  void addNeighborhood_list (int l, int c, integer o_e, bool a, integer dn, integer nr, IntList nbhc ) {
+  void addNeighborhood_list (int l, int c, integer o_e, bool a, integer dn, integer nr, ArrayList<Neighborhood> nbhs ) {
     addToIndices( l, c );
     float x = X + margin + (l * column_width) + ( ( (ceil(Hx) - Hx) * column_width ) / 2f );
     float y = Y + margin + (c * line_height) + ( ( (ceil(Vx) - Vx ) * line_height) / 2f );
-    set = (UIElement[]) append( set, new Neighborhood_list( x, y, Hx * column_width, Vx * line_height, o_e, a, dn, nr, nbhc ) );
+    set = (UIElement[]) append( set, new Neighborhood_list( x, y, Hx * column_width, Vx * line_height, o_e, a, dn, nr, nbhs ) );
   }
   //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-  void addRule_list ( int l, int c, IntList nbhc, bool nr, bool er ){
+  void addRule_list ( int l, int c, bool nr, bool er, ArrayList<Neighborhood> nbhs ){
     addToIndices( l, c );
     float x = X + margin + (l * column_width) + ( ( (ceil(Hx) - Hx) * column_width ) / 2f );
     float y = Y + margin + (c * line_height) + ( ( (ceil(Vx) - Vx ) * line_height) / 2f );
-    set = (UIElement[]) append( set, new Rule_list( x, y, Hx * column_width, Vx * line_height, nbhc, nr, er ) );
+    set = (UIElement[]) append( set, new Rule_list( x, y, Hx * column_width, Vx * line_height, nr, er, nbhs ) );
   }
   //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
   void addState_bar ( int l, int c, IntList i ) {
@@ -1343,7 +1343,7 @@ class UIElement {
   }
   void add( float[][] a ){
   }
-  void add( Rule r, ArrayList<float[][]> N, IntList S ){
+  void add( Rule r, ArrayList<Neighborhood> N, IntList S ){
   }
   void setColor( color c ) {
   }
@@ -3234,20 +3234,20 @@ class Neighborhood_widget extends UIElement {
 
 class Neighborhood_list extends UIElement {
   ArrayList<Neighborhood_widget> set;
-  IntList counts;
+  ArrayList<Neighborhood> neighborhoods;
   integer o_e, dn;
   floating_point scroll;
   Vertical_Scrollbar scrollbar;
   float unit_h, m, lm;
   PlusMinus_Int radius_selector;
   ToggleButton add_button;
-  Neighborhood_list (float x, float y, float w, float h, integer o, bool an, integer dn, integer nr, IntList nbhc ) {
+  Neighborhood_list (float x, float y, float w, float h, integer o, bool an, integer dn, integer nr, ArrayList<Neighborhood> nbhs ) {
     super(x, y, w, h);
     label = new Static_String_Label( "Neighborhoods", "TOLI", x, y, w, h );
     o_e = o;
     this.dn = dn;
     set = new ArrayList();
-    counts = nbhc;
+    neighborhoods = nbhs;
     m = 6;
     lm = 0.15 * (w-16);
     unit_h = 1.2 * (w -lm -16 -m -m);
@@ -3303,7 +3303,7 @@ class Neighborhood_list extends UIElement {
         if( mx > lm && mx < w-16-m ) p = floor( my/(unit_h+m) );
         for(int i = 0; i <set.size(); i++){
           if( set.get(i).mousePressed( p == i, mx-lm, my+m ) ){
-            counts.set( i, cell_count( set.get(i).incumbency ) );
+            neighborhoods.get( i ).count = cell_count( set.get(i).incumbency );
           }
         }
       }
@@ -3319,7 +3319,7 @@ class Neighborhood_list extends UIElement {
         if( mx > lm && mx < w-16-m ) p = floor( my/(unit_h+m) );
         for(int i = 0; i <set.size(); i++){
           if( set.get(i).mouseDragged( p == i, mx-lm, my+m ) ){
-            counts.set( i, cell_count( set.get(i).incumbency ) );
+            neighborhoods.get( i ).count = cell_count( set.get(i).incumbency );
           }
         }
       }                                                                                                                                                                                                              
@@ -3337,7 +3337,7 @@ class Neighborhood_list extends UIElement {
           if( mx > lm ){
             for(int i = 0; i <set.size(); i++){
               if( set.get(i).mouseReleased( p == i, mx-lm, my ) ){
-                counts.set( i, cell_count( set.get(i).incumbency ) );
+                neighborhoods.get( i ).count = cell_count( set.get(i).incumbency );
               }
             }
           }
@@ -3387,11 +3387,11 @@ class Neighborhood_list extends UIElement {
 //==================================================================================
 
 class Greek_letter_Cycler extends UIElement {
-  ArrayList<float[][]> size_ref;
+  ArrayList<Neighborhood> size_ref;
   integer incumbency;
   boolean highlighted;
   float cx, cy;
-  Greek_letter_Cycler (float x, float y, float w, float h, integer i, ArrayList<float[][]> sr ) {
+  Greek_letter_Cycler (float x, float y, float w, float h, integer i, ArrayList<Neighborhood> sr ) {
     super(x, y, w, h);
     cx = x + (w*0.5);
     cy = y + (h*0.5);
@@ -3451,20 +3451,20 @@ class Rule_widget extends UIElement {
   float m = 6, E;
   float[] tri;
   float unit_e, bx, bw;
-  ArrayList<float[][]> N;
+  ArrayList<Neighborhood> N;
   boolean p;
-  Rule_widget (float x, float y, float w, float h, Rule r, ArrayList<float[][]> N, IntList S ) {
+  Rule_widget (float x, float y, float w, float h, Rule r, ArrayList<Neighborhood> N, IntList S ) {
     super(x, y, w, h);
     incumbency = r;
     unit_e = h-m-m;
     this.N = N;
-    glc = new Greek_letter_Cycler( m, m, unit_e, unit_e, new integer(0), N );
-    ccc = new Color_Cycler( unit_e + (4*m), m, unit_e, unit_e, new integer(0), S );
+    glc = new Greek_letter_Cycler( m, m, unit_e, unit_e, new integer( r.neighborhood ), N );
+    ccc = new Color_Cycler( unit_e + (4*m), m, unit_e, unit_e, new integer( r.count_state ), S );
     bx = 2*unit_e + (5*m);
     bw = w - bx -(2*unit_e) -(6*m);
     E = bw/float(incumbency.range.length);
-    cct = new Color_Cycler( bx +bw +m, m, unit_e, unit_e, new integer(0), S );
-    ccr = new Color_Cycler( bx +bw +unit_e +(5*m), m, unit_e, unit_e, new integer(0), S );
+    cct = new Color_Cycler( bx +bw +m, m, unit_e, unit_e, new integer( r.target_state ), S );
+    ccr = new Color_Cycler( bx +bw +unit_e +(5*m), m, unit_e, unit_e, new integer( r.resulting_state ), S );
     tri = new float[6];
     tri[0] =  bx +bw +(2*m) +unit_e;
     tri[1] =  m + (unit_e*0.35);
@@ -3504,6 +3504,10 @@ class Rule_widget extends UIElement {
         if( mx > ccc.x && mx < ccc.x + unit_e ) ccc.mouseReleased( true );
         if( mx > cct.x && mx < cct.x + unit_e ) cct.mouseReleased( true );
         if( mx > ccr.x && mx < ccr.x + unit_e ) ccr.mouseReleased( true );
+        incumbency.neighborhood = glc.incumbency.n;
+        incumbency.count_state = ccc.incumbency.n;
+        incumbency.target_state = cct.incumbency.n;
+        incumbency.resulting_state = ccr.incumbency.n;
       }
     }
     return false;
@@ -3523,14 +3527,14 @@ class Rule_widget extends UIElement {
     //fill(CS.dimmer);
     //rect( bx, m, bw, unit_e );
     if( C >= 0 ){
-      if( incumbency.range.length != C ){
+      if( incumbency.range.length != C+1 ){
         boolean[] tmp = new boolean[ incumbency.range.length ];
         arrayCopy( incumbency.range, tmp );
-        incumbency.range = new boolean[ C ];
+        incumbency.range = new boolean[ C + 1 ];
         for(int i=0; i < min(incumbency.range.length, tmp.length); i++) incumbency.range[i] = tmp[i];
-        E = bw/float(C);
+        E = bw/float(incumbency.range.length);
       }
-      for(int i=0; i < C; i++){
+      for(int i=0; i < incumbency.range.length; i++){
         if( incumbency.range[i] ) fill(255, 0, 0 );
         else fill(CS.dimmer);
         rect( bx + (E*i), m, E, unit_e );
@@ -3544,15 +3548,15 @@ class Rule_widget extends UIElement {
 
 class Rule_list extends UIElement {
   ArrayList<Rule_widget> set;
-  IntList counts;
+  ArrayList<Neighborhood> neighborhoods;
   float unit_h, m;
   floating_point scroll;
   Vertical_Scrollbar scrollbar;
   ToggleButton new_rule, else_rule;
-  Rule_list (float x, float y, float w, float h, IntList nbhc, bool nr, bool er ) {
+  Rule_list (float x, float y, float w, float h, bool nr, bool er, ArrayList<Neighborhood> nbhs ) {
     super(x, y, w, h);
     set = new ArrayList();
-    counts = nbhc;
+    neighborhoods = nbhs;
     label = new Static_String_Label( "Rules", "TOLI", x, y, w, h );
     m = 6;
     unit_h = (w-16) * 0.08;
@@ -3562,7 +3566,7 @@ class Rule_list extends UIElement {
     new_rule = new ToggleButton( m, m, 0.2*w, 32, "New Rule", "C", nr );
     else_rule = new ToggleButton( new_rule.right()+m, m, 0.2*w, 32, "New Else Rule", "C", er );
   }
-  void add( Rule r, ArrayList<float[][]> N, IntList S ){
+  void add( Rule r, ArrayList<Neighborhood> N, IntList S ){
     set.add( new Rule_widget( m, m+(set.size()*(unit_h+m)), w-16-m-m, unit_h, r, N, S ) );
     scrollbar.update( m + set.size()*(unit_h+m) +32 +m );
     new_rule.increment_y( unit_h+m );
@@ -3631,8 +3635,8 @@ class Rule_list extends UIElement {
     pushMatrix();
     translate( x, y +scroll.n );
     for(int i = 0; i < set.size(); i++){
-      if( set.get(i).glc.incumbency.n < counts.size() ){
-        set.get(i).display( CS, counts.get( set.get(i).glc.incumbency.n ) );
+      if( set.get(i).glc.incumbency.n < neighborhoods.size() ){
+        set.get(i).display( CS, neighborhoods.get( set.get(i).glc.incumbency.n ).count );
       }
       else{
         set.get(i).display( CS, -1 );
