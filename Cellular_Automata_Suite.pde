@@ -8,14 +8,14 @@ TO-DO
    [✓] adding new ones
    [✓] deleting
 [ ]States bar
-  [ ] adding
-  [ ] deleting
+  [✓] adding
+  [✓] deleting
   [ ] type in number of states
-  [ ] auto-grayscale
+  [✓] auto-grayscale
   [ ] color editor
   [ ] horizontal scrollbar
 [ ]rule widget
-  [ ] right-side buttons, stacked vertically ( X, ^, v ) (move up and down)
+  [✓] right-side buttons, stacked vertically ( X, ^, v ) (move up and down)
   [ ] ELSE widget
 [ ]rule list
   [✓] adding
@@ -29,13 +29,14 @@ TO-DO
    
 [] playing field size controls
 
-[]the actual algorythm
+[✓]the actual algorythm
+  [] multithreading
 
 [] running UI:
-  [] back
-  [] screenshot
+  [✓] back
+  [✓] screenshot
   [] mouse tools (paint brushes)
-  [] random fills
+  [✓] random fills
   [] speed controls
   [] pattern saving / loading
 */
@@ -58,11 +59,14 @@ int[] duplicate_searches;
 String[] loaded;
 boolean load_sync;
 
+char moment = 'c';
+
 void setup() {
   size( displayWidth, 705 );
   surface.setLocation(-3, -3);
   surface.setResizable(true);
   noSmooth();
+  strokeCap(SQUARE);
   //frameRate(30);
   
   neighborhoods = new ArrayList();
@@ -79,137 +83,170 @@ void setup() {
   
   A = createImage( 500, 300, ARGB );
   B = createImage( 500, 300, ARGB );
-  for (int i = 0; i < A.pixels.length; i++) {
-    A.pixels[i] = color(0);
-    B.pixels[i] = (random(10)>6)? color(255) : color(0);
-  }
-  
+  turn = true;
+
   zoom = 2.0;
   sx = round( 0.5* (width - (zoom * A.width) ) );
   sy = 70;
-  turn = true;
   
-  build_ui();
+  //build_ui(); // load rebuilds the ui.
   
   loaded = loadStrings( "Conway's Game of Life.txt" );
   load();
 }
 
 void draw() {
-  if( run.b ){
-    if( bake ){
-      statemap = new HashMap<Integer,Integer>();
-      for(int i = 0; i < states.size(); ++i ) statemap.put( states.get(i), i );
+  
+  switch( moment ){
+    case 'o'://-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*- "OBSERVE" screen -*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-
+      background(240);
       
-      duplicate_searches = new int[ rules.size() ];
-      for(int k = 0; k < rules.size(); ++k ){
-        duplicate_searches[ k ] = -1;
-        for(int l = 0; l < k; ++l ){
-          if( rules.get(k).neighborhood == rules.get(l).neighborhood &&
-              rules.get(k).target_state == rules.get(l).target_state &&
-              rules.get(k).count_state  == rules.get(l).count_state ){
-                
-            duplicate_searches[ k ] = l;
-          }              
+      observe.display();
+      
+      translate( sx, sy );
+      scale( zoom );
+      if( turn ){
+        run_algorythm( B, A, neighborhoods, rules, states );
+        image( A, 0, 0 );
+        if( PrtSc.b ){
+          A.save("Cellular Automata "+year()+"-"+month()+"-"+day()+" "
+                 +nf( hour(), 2 )+"."+nf( minute(), 2 )+"."+nf(second(), 2)+".png");
+          PrtSc.b = false;
         }
       }
-      bake = false;
-    }
-    background(240);
-    
-    translate( sx, sy );
-    scale( zoom );
-    if( turn ){
-      run_algorythm( B, A, neighborhoods, rules, states );
-      image( A, 0, 0 );
-    }
-    else{
-      run_algorythm( A, B, neighborhoods, rules, states );
-      image( B, 0, 0 );
-    }
-    turn = !turn;
-  }
-  else{
-    background(240);
-    ui.display();
-    if( add_neigh.b ){
-      neighborhoods.add( new Neighborhood( neigh_radius.n ) );
-      ui.set[0].add( neighborhoods.get(neighborhoods.size()-1).hood );
-      add_neigh.b = false;
-    }
-    if( del_neigh.n >= 0 ){
-      neighborhoods.remove( del_neigh.n );
-      del_neigh.n = -1;
-    }
-    if( add_rule.b ){
-      rules.add( new Rule( 0, neighborhoods, 0, 0, 0 ) );
-      ui.set[1].add( rules.get(rules.size()-1), neighborhoods, states );
-      add_rule.b = false;
-    }
-    if( add_else_rule.b ){
-      rules.add( new Rule( 0, 1 ) );
-      ui.set[1].add( rules.get(rules.size()-1), neighborhoods, states );
-      add_else_rule.b = false;
-    }
-    
-    if( save.b ){
-      StringList out = new StringList();
-      String line = "";
-      for( int i = 0; i < states.size(); ++i ){
-        line += hex( states.get(i) );
-        if( i < states.size()-1 ) line += " ";
+      else{
+        run_algorythm( A, B, neighborhoods, rules, states );
+        image( B, 0, 0 );
+        if( PrtSc.b ){
+          B.save("Cellular Automata "+year()+"-"+month()+"-"+day()+" "
+                 +nf( hour(), 2 )+"."+nf( minute(), 2 )+"."+nf(second(), 2)+".png");
+          PrtSc.b = false;
+        }
       }
-      out.append( line );
-      out.append( "" );
+      turn = !turn;
       
-      for( int i = 0; i < rules.size(); ++i ){
-        line = "";
-        //Rule( int n, ArrayList<Neighborhood> N, int ts, int cs, int rs, String r )
-        line += rules.get(i).neighborhood + " " +
-                rules.get(i).target_state + " " +
-                rules.get(i).count_state + " " +
-                rules.get(i).resulting_state + " ";
-        for( int k = 0; k < rules.get(i).range.length; ++k ) line += rules.get(i).range[k]? "1" : "0";
-        out.append( line );
+      if( fill.b ){
+        for (int i = 0; i < A.pixels.length; i++) {
+          A.pixels[i] = color(0);
+          B.pixels[i] = ( random(10) > fill_ratio.n )? states.get(0) : states.get(states.size()-1);
+        }
+        fill.b = false;
+        turn = true;
       }
-      out.append( "" );
+      if( run.b ){
+        moment = 'c';
+        run.b = false;
+      }
+      break;
       
-      for( int i = 0; i < neighborhoods.size(); ++i ){
-        for( int j = 0; j < neighborhoods.get(i).hood.length; ++j ){
-          line = "";
-          for( int k = 0; k < neighborhoods.get(i).hood.length; ++k ){
-            line += neighborhoods.get(i).hood[k][j];
-            if( k < neighborhoods.get(i).hood.length-1 ) line += " ";
+    case 'c'://-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*- "CREATE" screen -*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-
+      background(240);
+      create.display();
+      
+      if( add_state.b ){
+        if( gradient.b ){
+          states.append( gradient_b.p );
+          float q = 1 / float(states.size());
+          states.set( 0, gradient_a.p );
+          for( int i = 1; i < states.size()-1; ++i ){
+            states.set( i, lerpColor( gradient_a.p, gradient_b.p, i*q ) );
           }
+        }
+        create.set[2].update();
+        add_state.b = false;
+      }
+      if( del_state.n >= 0 ){
+        states.remove( del_state.n );
+        create.set[1].update();
+        create.set[2].update();
+        del_state.n = -1;
+      }
+      
+      if( save.b ){
+        StringList out = new StringList();
+        String line = "";
+        for( int i = 0; i < states.size(); ++i ){
+          line += hex( states.get(i) );
+          if( i < states.size()-1 ) line += " ";
+        }
+        out.append( line );
+        out.append( "" );
+        
+        for( int i = 0; i < rules.size(); ++i ){
+          line = "";
+          //Rule( int n, ArrayList<Neighborhood> N, int ts, int cs, int rs, String r )
+          line += rules.get(i).neighborhood + " " +
+                  rules.get(i).target_state + " " +
+                  rules.get(i).count_state + " " +
+                  rules.get(i).resulting_state + " ";
+          for( int k = 0; k < rules.get(i).range.length; ++k ) line += rules.get(i).range[k]? "1" : "0";
           out.append( line );
         }
+        out.append( "" );
+        
+        for( int i = 0; i < neighborhoods.size(); ++i ){
+          for( int j = 0; j < neighborhoods.get(i).hood.length; ++j ){
+            line = "";
+            for( int k = 0; k < neighborhoods.get(i).hood.length; ++k ){
+              line += neighborhoods.get(i).hood[k][j];
+              if( k < neighborhoods.get(i).hood.length-1 ) line += " ";
+            }
+            out.append( line );
+          }
+        }
+        
+        saveStrings( "Cellular Automata "+year()+"-"+month()+"-"+day()+" "
+                     +nf( hour(), 2 )+"."+nf( minute(), 2 )+"."+nf(second(), 2)+".txt",
+                     out.array() );
+        
+        save.b = false;
       }
       
-      saveStrings( "Cellular Automata "+year()+"-"+month()+"-"+day()+" "
-                   +nf( hour(), 2 )+"."+nf( minute(), 2 )+"."+nf(second(), 2)+".txt",
-                   out.array() );
+      if( load.b ){
+        load_sync = true;
+        selectInput("Load Cellular Automata", "callback");
+        while( load_sync ){
+          print(".");// this line is actually necessary for some reason?
+        }
+        if( loaded != null ){
+          load();
+        }
+        loaded = null;
+        load.b = false;
+      }
       
-      save.b = false;
-    }
-    
-    if( load.b ){
-      load_sync = true;
-      selectInput("Load Cellular Automata", "callback");
-      while( load_sync ){
-        print(".");// this line is actually necessary for some reason?
+      if( run.b ){
+        statemap = new HashMap<Integer,Integer>();
+        for(int i = 0; i < states.size(); ++i ) statemap.put( states.get(i), i );
+        
+        duplicate_searches = new int[ rules.size() ];
+        for(int k = 0; k < rules.size(); ++k ){
+          duplicate_searches[ k ] = -1;
+          for(int l = 0; l < k; ++l ){
+            if( rules.get(k).neighborhood == rules.get(l).neighborhood &&
+                rules.get(k).target_state == rules.get(l).target_state &&
+                rules.get(k).count_state  == rules.get(l).count_state ){
+                  
+              duplicate_searches[ k ] = l;
+            }              
+          }
+        }
+        
+        for (int i = 0; i < A.pixels.length; i++) {
+          A.pixels[i] = states.get(0);
+          B.pixels[i] = states.get(0);
+        }
+        
+        run.b = false;
+        moment = 'o';
+        if( states.size() == 0 || neighborhoods.size() == 0 || rules.size() == 0 ) moment = 'c';
       }
-      if( loaded != null ){
-        load();
-      }
-      loaded = null;
-      load.b = false;
-    }
-    bake = true;
+      break;
   }
 }
 
 void callback(File selection) {
-  loaded = loadStrings( selection.getAbsolutePath() );
+  if( selection != null ) loaded = loadStrings( selection.getAbsolutePath() );
   load_sync = false;
 }
 
@@ -258,12 +295,6 @@ void load(){
     }
   }
   build_ui();
-  for( int i = 0; i < neighborhoods.size(); ++i ){
-    ui.set[0].add( neighborhoods.get(i).hood );
-  }
-  for( int i = 0; i < rules.size(); ++i ){
-    ui.set[1].add( rules.get(i), neighborhoods, states );
-  }
 }
 
 class Neighborhood{
