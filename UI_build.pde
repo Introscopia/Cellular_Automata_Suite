@@ -3,6 +3,7 @@ UISet create, observe;
 integer open_editor, del_state;
 bool add_state;
 bool save, load, run, PrtSc;
+bool_p play;
 
 floating_point fill_ratio;
 bool fill;
@@ -10,8 +11,12 @@ bool fill;
 bool gradient;
 pigment gradient_a, gradient_b;
 
-void build_ui(){
+integer brush_color;
+integer brush_radius;
 
+void build_ui(){
+  
+  play = new bool_p( false );
   run = new bool();
   save = new bool();
   load = new bool();
@@ -24,6 +29,8 @@ void build_ui(){
   gradient = new bool( true );
   gradient_a = new pigment( color( 0 ) );
   gradient_b = new pigment( color(255) );
+  brush_color = new integer( states.size()-1 );
+  brush_radius = new integer(1);
   
   create = new UISet( 3, 14, 28, 14, 1 );
   create.setScheme( #7C7570, 20 );//#9DABAF 
@@ -51,7 +58,10 @@ void build_ui(){
   
   observe.addLabel( 0, 0, "Cellular Automata Suite 1.0", "C" );
   observe.Hx = 1.9;
-  observe.Vx = 1;
+  observe.addToggle( 0, 1, "Pause", "Play", "C", play );
+  observe.Hx = 1.9;
+  observe.addSlider( 4, 1, "Brush:", "COLO", brush_radius, 1, 25 );
+  observe.addColor_Cycler ( 6, 1, brush_color, states );
   observe.addSlider(  9, 1, "", "C", fill_ratio, 0, 10 );
   observe.addToggle( 11, 1, "Fill", "C", fill );
   observe.addToggle( 14, 1, "Print Screen", "C", PrtSc );

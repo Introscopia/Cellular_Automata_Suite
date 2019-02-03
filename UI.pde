@@ -894,6 +894,14 @@ class UISet {
     set = (UIElement[]) append( set, new Neighborhood_list( x, y, Hx * column_width, Vx * line_height, o_e, nbhs ) );
   }
   //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+  //Color_Cycler (float x, float y, float w, float h, integer i, IntList l )
+  void addColor_Cycler (int l, int c, integer i, IntList S ) {
+    addToIndices( l, c );
+    float x = X + margin + (l * column_width) + ( ( (ceil(Hx) - Hx) * column_width ) / 2f );
+    float y = Y + margin + (c * line_height) + ( ( (ceil(Vx) - Vx ) * line_height) / 2f );
+    set = (UIElement[]) append( set, new Color_Cycler( x, y, Hx * column_width, Vx * line_height, i, S ) );
+  }
+  //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
   void addRule_list ( int l, int c, ArrayList<Rule> rls, ArrayList<Neighborhood> nbhs, IntList sts ){
     addToIndices( l, c );
     float x = X + margin + (l * column_width) + ( ( (ceil(Hx) - Hx) * column_width ) / 2f );
@@ -1818,7 +1826,7 @@ class Slider extends UIElement {
     receive_input(Q);
   }
   void display(ColorScheme CS) {
-    fill(CS.dim);
+    fill(CS.dimmer);
     Rect();
     if ( highlighted ) fill(CS.bright);
     else fill(CS.dim);
@@ -3467,6 +3475,7 @@ class Rule_widget extends UIElement {
   float unit_e, bx, bw;
   ArrayList<Neighborhood> N;
   boolean p;
+  int pi;
   Rule_widget (float x, float y, float w, float h, Rule r, ArrayList<Neighborhood> N, IntList S ) {
     super(x, y, w, h);
     incumbency = r;
@@ -3526,7 +3535,8 @@ class Rule_widget extends UIElement {
           }
         }
         p = incumbency.range[i];
-      }                                                                                                                                                                                                               
+        pi = i;
+      }                                                                                                                                                                                                             
     }
     return false;
   }
@@ -3534,7 +3544,21 @@ class Rule_widget extends UIElement {
     if( Q ){
       mx -= bx+m;
       int i = floor( mx / ( bw / float(incumbency.range.length) ) );
-      if( i >= 0 && i < incumbency.range.length ){
+      if( abs(i - pi) > 1 ){
+        if( i > pi ){
+          for( int g = pi; g < incumbency.range.length; ++g ){
+            incumbency.range[g] = p;
+            if( g == i ) break;
+          }
+        }
+        else{
+          for( int g = pi; g >= 0; --g ){
+            incumbency.range[g] = p;
+            if( g == i ) break;
+          }
+        }
+      }
+      else if( i >= 0 && i < incumbency.range.length ){
         incumbency.range[i] = p;
       }
     }

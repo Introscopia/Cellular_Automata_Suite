@@ -16,12 +16,10 @@ TO-DO
   [ ] horizontal scrollbar
 [ ]rule widget
   [✓] right-side buttons, stacked vertically ( X, ^, v ) (move up and down)
+  [✓] dragging on the range doesn't leave gaps.
   [ ] ELSE widget
 [ ]rule list
   [✓] adding
-  * Dragging widgets ?
-    [ ] drag into trashcan to delete
-    [ ] change order
   [ ] handling very large neighborhoods
   
 [] nbhood editor
@@ -30,15 +28,19 @@ TO-DO
 [] playing field size controls
 
 [✓]the actual algorythm
+  [] list of neighbors to check instead of the grid with values
   [] multithreading
 
 [] running UI:
   [✓] back
   [✓] screenshot
-  [] mouse tools (paint brushes)
+  [✓] mouse tools (paint brushes)
+    [] different brush sizes
   [✓] random fills
+  [✓] play/pause
   [] speed controls
   [] pattern saving / loading
+  [✓] zoom and drag
 */
 
 ArrayList<Neighborhood> neighborhoods;
@@ -48,8 +50,9 @@ PFont georgia_big, arial;
 
 PImage A, B;
 boolean turn;
-float zoom;
+float zoom, zI;
 int sx, sy;
+float tx, ty;
 
 boolean bake;
 HashMap<Integer,Integer> statemap;
@@ -60,6 +63,7 @@ String[] loaded;
 boolean load_sync;
 
 char moment = 'c';
+boolean paused_turn;
 
 void setup() {
   size( displayWidth, 705 );
@@ -84,15 +88,18 @@ void setup() {
   A = createImage( 500, 300, ARGB );
   B = createImage( 500, 300, ARGB );
   turn = true;
+  paused_turn = false;
 
   zoom = 2.0;
+  zI = 7.27254089;
   sx = round( 0.5* (width - (zoom * A.width) ) );
-  sy = 70;
+  sy = 80;
   
   //build_ui(); // load rebuilds the ui.
   
   loaded = loadStrings( "Conway's Game of Life.txt" );
   load();
+  loaded = null;
 }
 
 void draw() {
@@ -103,26 +110,55 @@ void draw() {
       
       observe.display();
       
-      translate( sx, sy );
+      if( play.changed() ){
+        paused_turn = turn;
+        turn = !turn;
+        play.set();
+        if( !play.b ){
+          if( paused_turn ) A.loadPixels();
+          else B.loadPixels();
+        }
+      }
+      
+      clip( sx, sy, 1000, 600 );
+      translate( sx + tx, sy +ty );
       scale( zoom );
-      if( turn ){
-        run_algorythm( B, A, neighborhoods, rules, states );
-        image( A, 0, 0 );
-        if( PrtSc.b ){
-          A.save("Cellular Automata "+year()+"-"+month()+"-"+day()+" "
-                 +nf( hour(), 2 )+"."+nf( minute(), 2 )+"."+nf(second(), 2)+".png");
-          PrtSc.b = false;
+      
+      if( play.b ){
+        if( turn ){
+          run_algorythm( B, A, neighborhoods, rules, states );
+          image( A, 0, 0 );
+          if( PrtSc.b ){
+            A.save("Cellular Automata "+now()+".png");
+            PrtSc.b = false;
+          }
+        }
+        else{
+          run_algorythm( A, B, neighborhoods, rules, states );
+          image( B, 0, 0 );
+          if( PrtSc.b ){
+            B.save("Cellular Automata "+now()+".png");
+            PrtSc.b = false;
+          }
         }
       }
       else{
-        run_algorythm( A, B, neighborhoods, rules, states );
-        image( B, 0, 0 );
-        if( PrtSc.b ){
-          B.save("Cellular Automata "+year()+"-"+month()+"-"+day()+" "
-                 +nf( hour(), 2 )+"."+nf( minute(), 2 )+"."+nf(second(), 2)+".png");
-          PrtSc.b = false;
+        if( paused_turn ){
+          image( A, 0, 0 );
+          if( PrtSc.b ){
+            A.save("Cellular Automata "+now()+".png");
+            PrtSc.b = false;
+          }
+        }
+        else{
+          image( B, 0, 0 );
+          if( PrtSc.b ){
+            B.save("Cellular Automata "+now()+".png");
+            PrtSc.b = false;
+          }
         }
       }
+      noClip();
       turn = !turn;
       
       if( fill.b ){
@@ -195,8 +231,7 @@ void draw() {
           }
         }
         
-        saveStrings( "Cellular Automata "+year()+"-"+month()+"-"+day()+" "
-                     +nf( hour(), 2 )+"."+nf( minute(), 2 )+"."+nf(second(), 2)+".txt",
+        saveStrings( "Cellular Automata "+now()+".txt",
                      out.array() );
         
         save.b = false;
@@ -243,6 +278,10 @@ void draw() {
       }
       break;
   }
+}
+
+String now(){
+  return year()+"-"+month()+"-"+day()+" "+nf( hour(), 2 )+"."+nf( minute(), 2 )+"."+nf(second(), 2);
 }
 
 void callback(File selection) {
