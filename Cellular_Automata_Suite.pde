@@ -31,6 +31,8 @@ TO-DO
   [] list of neighbors to check instead of the grid with values
   [] multithreading
 
+[] visual confirmation that the save has completed.
+
 [] running UI:
   [✓] back
   [✓] screenshot
@@ -109,15 +111,20 @@ void draw() {
       background(240);
       
       observe.display();
+      fill(0);
+      text( "FPS: "+nf(frameRate, 1, 1 ), 4, height-30 );
       
       if( play.changed() ){
-        paused_turn = turn;
-        turn = !turn;
-        play.set();
         if( !play.b ){
           if( paused_turn ) A.loadPixels();
           else B.loadPixels();
+          paused_turn = turn;
+          turn = !turn;
         }
+        else{
+          turn = !paused_turn;
+        }
+        play.set();
       }
       
       clip( sx, sy, 1000, 600 );
@@ -162,13 +169,17 @@ void draw() {
       turn = !turn;
       
       if( fill.b ){
-        for (int i = 0; i < A.pixels.length; i++) {
-          A.pixels[i] = color(0);
+        B.loadPixels();
+        for (int i = 0; i < B.pixels.length; i++) {
           B.pixels[i] = ( random(10) > fill_ratio.n )? states.get(0) : states.get(states.size()-1);
         }
+        if( play.b ) turn = true;
+        else paused_turn = false;
+        
+        B.updatePixels();
         fill.b = false;
-        turn = true;
       }
+      
       if( run.b ){
         moment = 'c';
         run.b = false;
@@ -231,7 +242,7 @@ void draw() {
           }
         }
         
-        saveStrings( "Cellular Automata "+now()+".txt",
+        saveStrings( "data\\Cellular Automata "+now()+".txt",
                      out.array() );
         
         save.b = false;
@@ -241,7 +252,7 @@ void draw() {
         load_sync = true;
         selectInput("Load Cellular Automata", "callback");
         while( load_sync ){
-          print(".");// this line is actually necessary for some reason?
+          print(" ");// this line is actually necessary for some reason?
         }
         if( loaded != null ){
           load();
@@ -265,6 +276,10 @@ void draw() {
               duplicate_searches[ k ] = l;
             }              
           }
+        }
+        
+        for(int i = 0; i < neighborhoods.size(); ++i ){
+          neighborhoods.get(i).bake_lists();
         }
         
         for (int i = 0; i < A.pixels.length; i++) {
@@ -339,10 +354,102 @@ void load(){
 class Neighborhood{
   float[][] hood;
   int count, radius;
+  
+  short[] x_list, y_list;
+  short[][][] sectors;
+  //short[] tl_list, t_list, tr_list, r_list, br_list, b_list, bl_list, l_list;
+  //short[] ntl_list, nt_list, ntr_list, nr_list, nbr_list, nb_list, nbl_list, nl_list;
   Neighborhood( int r ){
     hood = new float[(2 * r) +1][(2 * r) +1];
     count = 0;
     radius = r;
+  }
+  void bake_lists(){
+    x_list = new short[ count ];
+    y_list = new short[ count ];
+    {
+      int c = 0;
+      for( int i = 0; i < hood.length; ++i ){
+        for( int j = 0; j < hood[0].length; ++j ){
+          if( hood[i][j] > 0 && c < count){
+            x_list[c] = (short) (i - radius);
+            y_list[c] = (short) (j - radius);
+            ++c;
+          }
+        }
+      }
+    }
+    sectors = new short[8][count][2];
+    int[][] c = new int[8][2];
+    for( int i = 0; i < 8; ++i ){
+      c[i][0] = 0;
+      c[i][1] = 0;
+    }
+    
+    for( short i = 0; i < count; ++i ){
+      for( int k = 0; k < 8; ++k ) sectors[k][i][0] = -1;
+      for( int k = 0; k < 8; ++k ) sectors[k][i][1] = -1;
+      boolean xn = x_list[i] < 0;
+      boolean yn = y_list[i] < 0;
+      boolean xp = x_list[i] > 0;
+      boolean yp = y_list[i] > 0;
+      if( xn || yn ){ //.............TOP LEFT
+        sectors[0][ c[0][0] ][0] = i;
+        ++c[0][0];
+      } else{
+        sectors[0][ c[0][1] ][1] = i;
+        ++c[0][1];
+      }
+      if( yn ){ //...................TOP
+        sectors[1][ c[1][0] ][0] = i;
+        ++c[1][0];
+      } else{
+        sectors[1][ c[1][1] ][1] = i;
+        ++c[1][1];
+      }
+      if( xp || yn ){ //.............TOP RIGHT
+        sectors[2][ c[2][0] ][0] = i;
+        ++c[2][0];
+      } else{
+        sectors[2][ c[2][1] ][1] = i;
+        ++c[2][1];
+      }
+      if( xp ){ //...................RIGHT
+        sectors[3][ c[3][0] ][0] = i;
+        ++c[3][0];
+      } else{
+        sectors[3][ c[3][1] ][1] = i;
+        ++c[3][1];
+      }
+      if( xp || yp ){ //.............BOTTOM RIGHT
+        sectors[4][ c[4][0] ][0] = i;
+        ++c[4][0];
+      } else{
+        sectors[4][ c[4][1] ][1] = i;
+        ++c[4][1];
+      }
+      if( yp ){ //...................BOTTOM
+        sectors[5][ c[5][0] ][0] = i;
+        ++c[5][0];
+      } else{
+        sectors[5][ c[5][1] ][1] = i;
+        ++c[5][1];
+      }
+      if( xn || yp ){ //.............BOTTOM LEFT
+        sectors[6][ c[6][0] ][0] = i;
+        ++c[6][0];
+      } else{
+        sectors[6][ c[6][1] ][1] = i;
+        ++c[6][1];
+      }
+      if( xn ){ //...................LEFT
+        sectors[7][ c[7][0] ][0] = i;
+        ++c[7][0];
+      } else{
+        sectors[7][ c[7][1] ][1] = i;
+        ++c[7][1];
+      }
+    }
   }
 }
 
@@ -403,28 +510,13 @@ void run_algorythm( PImage old, PImage neo, ArrayList<Neighborhood> neighborhood
     for(int j = 0; j < rules.size(); ++j ){
       //rules.get(j).print_ln();
       if( target == rules.get(j).target_state ){
-        int N = rules.get(j).neighborhood;
         
         if( duplicate_searches[j] >= 0 ){
           counts[j] = counts[ duplicate_searches[j] ];
         }
         else{
-          int Y = floor( i / float(old.width) );
-          int X = i - old.width*Y;
-          int xs = ( X < neighborhoods.get(N).radius )? 0 : X - neighborhoods.get(N).radius;
-          int xe = ( X >= old.width - neighborhoods.get(N).radius )? old.width-1 : X + neighborhoods.get(N).radius;
-          int ys = ( Y < neighborhoods.get(N).radius )? 0 : Y - neighborhoods.get(N).radius;
-          int ye = ( Y >= old.height - neighborhoods.get(N).radius )? old.height-1 : Y + neighborhoods.get(N).radius;
-          
-          counts[j] = 0;
-          for( int x = xs; x <= xe; ++x ){
-            for( int y = ys; y <= ye; ++y ){
-              int S = statemap.get( old.pixels[ (old.width * y) + x ] );
-              int hoodX = x -X +neighborhoods.get(N).radius;
-              int hoodY = y -Y +neighborhoods.get(N).radius;
-              counts[j] += neighborhoods.get(N).hood[ hoodX ][ hoodY ] * (( S == rules.get(j).count_state )? 1 : 0 );
-            }
-          }
+          //counts[j] = naive_count( old, neighborhoods.get( rules.get(j).neighborhood ), rules.get(j), i );
+          counts[j] = list_count( old, neighborhoods.get( rules.get(j).neighborhood ), rules.get(j), i );
         }
         if( rules.get(j).range[ floor( counts[j] ) ] ){
           neo.pixels[ i ] = states.get( rules.get(j).resulting_state );
@@ -433,4 +525,167 @@ void run_algorythm( PImage old, PImage neo, ArrayList<Neighborhood> neighborhood
     }
   }
   neo.updatePixels();
+}
+
+float naive_count( PImage old, Neighborhood neighborhood, Rule rule, int i ){
+  int Y = floor( i / float(old.width) );
+  int X = i - old.width*Y;
+  int xs = ( X < neighborhood.radius )? 0 : X - neighborhood.radius;
+  int xe = ( X >= old.width - neighborhood.radius )? old.width-1 : X + neighborhood.radius;
+  int ys = ( Y < neighborhood.radius )? 0 : Y - neighborhood.radius;
+  int ye = ( Y >= old.height - neighborhood.radius )? old.height-1 : Y + neighborhood.radius;
+  
+  int C = 0;
+  for( int x = xs; x <= xe; ++x ){
+    for( int y = ys; y <= ye; ++y ){
+      int S = statemap.get( old.pixels[ (old.width * y) + x ] );
+      int hoodX = x -X +neighborhood.radius;
+      int hoodY = y -Y +neighborhood.radius;
+      C += neighborhood.hood[ hoodX ][ hoodY ] * (( S == rule.count_state )? 1 : 0 );
+    }
+  }
+  return C;
+}
+
+float list_count( PImage old, Neighborhood nbh, Rule rule, int i ){
+  int C = 0;
+  int Y = floor( i / float(old.width) );
+  int X = i - old.width*Y;
+  byte one = 1;
+  byte xl = X < nbh.radius ? one : 0;
+  byte yt = Y < nbh.radius ? one : 0;
+  byte xr = X >= old.width - nbh.radius ? one : 0;
+  byte yb = Y >= old.height - nbh.radius ? one : 0;
+  int L = xl<<3 | yt<<2 | xr<<1 | yb;
+
+  switch( L ){
+    case 0: // MIDDLE
+      for( int q = 0; q < nbh.count; ++q ){
+        if ( statemap.get( old.pixels[ (old.width * (Y + nbh.y_list[ q ]) ) + (X + nbh.x_list[ q ]) ] ) == rule.count_state ){
+          C += nbh.hood[nbh.radius + nbh.x_list[ q ] ][nbh.radius + nbh.y_list[ q ] ];
+      }}
+      break;
+    case 1: // BOTTOM
+      for( int q = 0; q < nbh.count; ++q ){
+        int s = nbh.sectors[5][q][0];
+        if( s == -1 ) break;
+        if( Y + nbh.y_list[ s ] < old.height ){
+          if ( statemap.get( old.pixels[ (old.width * (Y + nbh.y_list[ s ]) ) + (X + nbh.x_list[ s ]) ] ) == rule.count_state ){
+            C += nbh.hood[nbh.radius + nbh.x_list[ s ] ][nbh.radius + nbh.y_list[ s ] ];
+      }}}
+      for( int q = 0; q < nbh.count; ++q ){
+        int s = nbh.sectors[5][q][1];
+        if( s == -1 ) break;
+        if ( statemap.get( old.pixels[ (old.width * (Y + nbh.y_list[ s ]) ) + (X + nbh.x_list[ s ]) ] ) == rule.count_state ){
+            C += nbh.hood[nbh.radius + nbh.x_list[ s ] ][nbh.radius + nbh.y_list[ s ] ];
+      }}
+      break;
+    case 2: // RIGHT
+      for( int q = 0; q < nbh.count; ++q ){
+        int s = nbh.sectors[3][q][0];
+        if( s == -1 ) break;
+        if( X + nbh.x_list[ s ] < old.width ){
+          if ( statemap.get( old.pixels[ (old.width * (Y + nbh.y_list[ s ]) ) + (X + nbh.x_list[ s ]) ] ) == rule.count_state ){
+            C += nbh.hood[nbh.radius + nbh.x_list[ s ] ][nbh.radius + nbh.y_list[ s ] ];
+      }}}
+      for( int q = 0; q < nbh.count; ++q ){
+        int s = nbh.sectors[3][q][1];
+        if( s == -1 ) break;
+        if ( statemap.get( old.pixels[ (old.width * (Y + nbh.y_list[ s ]) ) + (X + nbh.x_list[ s ]) ] ) == rule.count_state ){
+            C += nbh.hood[nbh.radius + nbh.x_list[ s ] ][nbh.radius + nbh.y_list[ s ] ];
+      }}
+      break;
+    case 3: // BOTTOM RIGHT
+      for( int q = 0; q < nbh.count; ++q ){
+        int s = nbh.sectors[4][q][0];
+        if( s == -1 ) break;
+        if( X + nbh.x_list[ s ] < old.width && Y + nbh.y_list[ s ] < old.height ){
+          if ( statemap.get( old.pixels[ (old.width * (Y + nbh.y_list[ s ]) ) + (X + nbh.x_list[ s ]) ] ) == rule.count_state ){
+            C += nbh.hood[nbh.radius + nbh.x_list[ s ] ][nbh.radius + nbh.y_list[ s ] ];
+      }}}
+      for( int q = 0; q < nbh.count; ++q ){
+        int s = nbh.sectors[4][q][1];
+        if( s == -1 ) break;
+        if ( statemap.get( old.pixels[ (old.width * (Y + nbh.y_list[ s ]) ) + (X + nbh.x_list[ s ]) ] ) == rule.count_state ){
+            C += nbh.hood[nbh.radius + nbh.x_list[ s ] ][nbh.radius + nbh.y_list[ s ] ];
+      }}
+      break;
+    case 4: // TOP
+      for( int q = 0; q < nbh.count; ++q ){
+        int s = nbh.sectors[1][q][0];
+        if( s == -1 ) break;
+        if( Y + nbh.y_list[ s ] > 0 ){
+          if ( statemap.get( old.pixels[ (old.width * (Y + nbh.y_list[ s ]) ) + (X + nbh.x_list[ s ]) ] ) == rule.count_state ){
+            C += nbh.hood[nbh.radius + nbh.x_list[ s ] ][nbh.radius + nbh.y_list[ s ] ];
+      }}}
+      for( int q = 0; q < nbh.count; ++q ){
+        int s = nbh.sectors[1][q][1];
+        if( s == -1 ) break;
+        if ( statemap.get( old.pixels[ (old.width * (Y + nbh.y_list[ s ]) ) + (X + nbh.x_list[ s ]) ] ) == rule.count_state ){
+            C += nbh.hood[nbh.radius + nbh.x_list[ s ] ][nbh.radius + nbh.y_list[ s ] ];
+      }}
+      break;
+    case 6: // TOP RIGHT
+      for( int q = 0; q < nbh.count; ++q ){
+        int s = nbh.sectors[2][q][0];
+        if( s == -1 ) break;
+        if( X + nbh.x_list[ s ] < old.width && Y + nbh.y_list[ s ] > 0 ){
+          if ( statemap.get( old.pixels[ (old.width * (Y + nbh.y_list[ s ]) ) + (X + nbh.x_list[ s ]) ] ) == rule.count_state ){
+            C += nbh.hood[nbh.radius + nbh.x_list[ s ] ][nbh.radius + nbh.y_list[ s ] ];
+      }}}
+      for( int q = 0; q < nbh.count; ++q ){
+        int s = nbh.sectors[2][q][1];
+        if( s == -1 ) break;
+        if ( statemap.get( old.pixels[ (old.width * (Y + nbh.y_list[ s ]) ) + (X + nbh.x_list[ s ]) ] ) == rule.count_state ){
+            C += nbh.hood[nbh.radius + nbh.x_list[ s ] ][nbh.radius + nbh.y_list[ s ] ];
+      }}
+      break;
+    case 8: // LEFT
+      for( int q = 0; q < nbh.count; ++q ){
+        int s = nbh.sectors[7][q][0];
+        if( s == -1 ) break;
+        if( X + nbh.x_list[ s ] > 0 ){
+          if ( statemap.get( old.pixels[ (old.width * (Y + nbh.y_list[ s ]) ) + (X + nbh.x_list[ s ]) ] ) == rule.count_state ){
+            C += nbh.hood[nbh.radius + nbh.x_list[ s ] ][nbh.radius + nbh.y_list[ s ] ];
+      }}}
+      for( int q = 0; q < nbh.count; ++q ){
+        int s = nbh.sectors[7][q][1];
+        if( s == -1 ) break;
+        if ( statemap.get( old.pixels[ (old.width * (Y + nbh.y_list[ s ]) ) + (X + nbh.x_list[ s ]) ] ) == rule.count_state ){
+            C += nbh.hood[nbh.radius + nbh.x_list[ s ] ][nbh.radius + nbh.y_list[ s ] ];
+      }}
+      break;
+    case 9: // BOTTOM LEFT
+      for( int q = 0; q < nbh.count; ++q ){
+        int s = nbh.sectors[6][q][0];
+        if( s == -1 ) break;
+        if( X + nbh.x_list[ s ] > 0 && Y + nbh.y_list[ s ] < old.height ){
+          if ( statemap.get( old.pixels[ (old.width * (Y + nbh.y_list[ s ]) ) + (X + nbh.x_list[ s ]) ] ) == rule.count_state ){
+            C += nbh.hood[nbh.radius + nbh.x_list[ s ] ][nbh.radius + nbh.y_list[ s ] ];
+      }}}
+      for( int q = 0; q < nbh.count; ++q ){
+        int s = nbh.sectors[6][q][1];
+        if( s == -1 ) break;
+        if ( statemap.get( old.pixels[ (old.width * (Y + nbh.y_list[ s ]) ) + (X + nbh.x_list[ s ]) ] ) == rule.count_state ){
+            C += nbh.hood[nbh.radius + nbh.x_list[ s ] ][nbh.radius + nbh.y_list[ s ] ];
+      }}
+      break;
+    case 12:// TOP LEFT
+      for( int q = 0; q < nbh.count; ++q ){
+        int s = nbh.sectors[0][q][0];
+        if( s == -1 ) break;
+        if( X + nbh.x_list[ s ] > 0 && Y + nbh.y_list[ s ] > 0 ){
+          //println( i, q, s, nbh.x_list[ s ], nbh.y_list[ s ], (old.width * (Y + nbh.y_list[ s ]) ) + (X + nbh.x_list[ s ]) );
+          if ( statemap.get( old.pixels[ (old.width * (Y + nbh.y_list[ s ]) ) + (X + nbh.x_list[ s ]) ] ) == rule.count_state ){
+            C += nbh.hood[nbh.radius + nbh.x_list[ s ] ][nbh.radius + nbh.y_list[ s ] ];
+      }}}
+      for( int q = 0; q < nbh.count; ++q ){
+        int s = nbh.sectors[0][q][1];
+        if( s == -1 ) break;
+        if ( statemap.get( old.pixels[ (old.width * (Y + nbh.y_list[ s ]) ) + (X + nbh.x_list[ s ]) ] ) == rule.count_state ){
+            C += nbh.hood[nbh.radius + nbh.x_list[ s ] ][nbh.radius + nbh.y_list[ s ] ];
+      }}
+      break;
+  }
+  return C;
 }
